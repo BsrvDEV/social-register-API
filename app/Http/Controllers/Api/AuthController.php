@@ -144,7 +144,7 @@ class AuthController extends Controller
 
             $role = Role::where('id', $request->role_id)->first();
             if ($request->has('role_id')) {
-                $user->assignRole($role->name);
+                $user->assignRole($role);
                 //     $permissions = $request->input("permission");
                 // // $role->syncPermissions($permissions, 'guard');
                 //     $role->syncPermissions($permissions);
@@ -154,6 +154,8 @@ class AuthController extends Controller
                 ]);
 
             }
+
+            // dd('here');
             // if ($request->has('permission')) {
 
             //     $permissions = $request->input("permission");
@@ -184,7 +186,7 @@ class AuthController extends Controller
             return respond(false, "Error processing request. Please try again.", null, 500);
         }
     }
-    
+
     public function forgotpassword (Request $request){
         $validator = Validator::make($request->all(),[
             'email'=> 'required|email'
@@ -291,7 +293,7 @@ class AuthController extends Controller
             return respond(false, $e->getMessage(), null, 500);
         }
     }
-    
+
     public function changePassword(Request $request) {
        try {
             $user = Auth::user();
@@ -304,7 +306,7 @@ class AuthController extends Controller
                 'old_password' => 'required|string',
                 'new_password' => 'required|string|min:8|different:old_password',
             ]);
-        
+
             if ($validator->fails()) {
                 return respond(false, $validator->errors(), null, 400);
             }
@@ -312,10 +314,10 @@ class AuthController extends Controller
             if (!Hash::check($request->old_password, $user->password)) {
                 return respond(false, 'Old password is incorrect', null, 400);
             }
-            
+
             $user->password = Hash::make($request->new_password);
             $user->save();
-            
+
             DB::commit();
             return respond(true, 'Password changed succesfully', null, 200);
         }catch (\Exception $e ) {

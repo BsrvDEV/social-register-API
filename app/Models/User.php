@@ -19,6 +19,8 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
+    protected $guard_name = 'sanctum';
+    
     protected $fillable = [
         'name',
         'first_name',
@@ -68,5 +70,5 @@ class User extends Authenticatable
     {
         return $this->hasOne(Household::class, 'member_id');
     }
-    
+
 }
