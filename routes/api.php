@@ -29,8 +29,11 @@ Route::get('/validate_nin', [App\Http\Controllers\Api\NinVerificationController:
 Route::post('/register-household', [App\Http\Controllers\Api\RegistrationController::class, 'registerHousehold']);
 
 Route::group(['middleware' => ['auth:sanctum']], function () {
-    Route::post('/create_admin', [App\Http\Controllers\Api\AuthController::class, 'CreateAdminUser']);
-
+    Route::middleware('auth:sanctum','admin')->group(function () {
+        Route::post('/create_admin', [App\Http\Controllers\Api\AuthController::class, 'CreateAdminUser']);
+        Route::post('/assign_zonal_officer', [App\Http\Controllers\Api\ApplicationController::class, 'assignAdmin']);
+    });
+        
     Route::get('/fetch_user_household', [App\Http\Controllers\Api\RegistrationController::class, 'fetchuserHousehold']);
 
     Route::prefix('household')->group(function () {

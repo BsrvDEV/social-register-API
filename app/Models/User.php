@@ -70,5 +70,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(Household::class, 'member_id');
     }
+    public function assignedApplications()
+    {
+        return $this->hasMany(AssistanceApplicationAssignment::class, 'admin_id');
+    }
 
 }

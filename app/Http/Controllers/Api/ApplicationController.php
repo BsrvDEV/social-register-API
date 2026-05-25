@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\AssistanceApplication;
+use App\Models\AssistanceApplicationAssignment;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Household;
 use Illuminate\Support\Facades\DB;
@@ -128,7 +129,84 @@ class ApplicationController extends Controller
         }
     }
 
-    public function assignAdmin(Request $request) {
-        
+   public function assignAdmin(Request $request)
+    {
+        try {
+           DB::beginTransaction();
+
+           $validRoles = [
+                'Zonal Officer'
+            ];
+
+            $validator = Validator::make($request->all(), [
+                'application_id' => 'required|exists:assistance_applications,id',
+                'admin_id' => [
+                    'required',
+                    'exists:users,id',
+                    function ($attribute, $value, $fail) use ($validRoles) {
+
+                        $user = User::find($value);
+
+                        if (
+                            !$user ||
+                            !$user->roles()->whereIn('name', $validRoles)->exists()
+                        ) {
+                            $fail('Selected user must be a Zonal Officer.');
+                        }
+                    }
+                ]
+            ]);
+
+            if ($validator->fails()) {
+                return respond(false, $validator->errors(), null, 400);
+            }
+            
+            $application = AssistanceApplication::find($request->application_id);
+
+            if (!$application) {
+                return respond(false, 'Application not found', null, 404);
+            }
+
+            if ($application->assigned_admin) {
+                return respond(false, 'Application already assigned', null, 400);
+            }
+
+            $admin = User::find($request->admin_id);
+
+            if (!$admin) {
+                return respond(false, 'Admin not found', null, 404);
+            }
+
+            $roleId = DB::table('user_roles')
+            ->join('roles', 'user_roles.role_id', '=', 'roles.id')
+            ->where('user_roles.user_id', $admin->id)
+            ->where('roles.name', 'Zonal Officer')
+            ->value('roles.id');
+
+            AssistanceApplicationAssignment::create([
+                'assistance_application_id' => $application->id,
+                'applicant_id' => $application->household_id,
+                'admin_id' => $admin->id,
+                'officer_title_id' => $roleId
+            ]);
+
+            $application->update([
+                'assigned_admin' => true
+            ]);
+
+            DB::commit();
+
+            return respond(true, 'Admin assigned successfully', $application, 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            log_error($e, [
+                'action' => 'assign_admin',
+                'input' => $request->all(),
+                'user_id' => Auth::id()
+            ]);
+
+            return respond(false, $e->getMessage(), null, 500);
+            }
     }
 }

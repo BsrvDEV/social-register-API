@@ -81,6 +81,11 @@ class AuthController extends Controller
     {
         try {
             DB::beginTransaction();
+
+            if(auth()->user()->registration_type !=='admin'){ 
+                return respond(false, 'Access denied. Admins Only',null,400);
+            }
+
             $validator = Validator::make($request->all(), [
                 'first_name' => 'required|string|max:1024',
                 'last_name' => 'required|string|max:1024',
@@ -296,6 +301,8 @@ class AuthController extends Controller
 
     public function changePassword(Request $request) {
        try {
+            DB::beginTransaction();
+
             $user = Auth::user();
 
             if (!$user) {
@@ -304,7 +311,7 @@ class AuthController extends Controller
 
             $validator = Validator::make($request->all(),[
                 'old_password' => 'required|string',
-                'new_password' => 'required|string|min:8|different:old_password',
+                'new_password' => 'required|string|min:8|different:old_password|confirmed',
             ]);
 
             if ($validator->fails()) {
@@ -316,6 +323,7 @@ class AuthController extends Controller
             }
 
             $user->password = Hash::make($request->new_password);
+            /** @var User $user */
             $user->save();
 
             DB::commit();

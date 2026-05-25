@@ -27,4 +27,9 @@ class AssistanceApplication extends Model
     {
         return $this->belongsTo(Household::class, 'household_id');
     }
+    
+    public function assignments()
+    {
+        return $this->hasMany(AssistanceApplicationAssignment::class, 'assistance_application_id');
+    }
 }
