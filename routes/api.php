@@ -32,6 +32,8 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::middleware('auth:sanctum','admin')->group(function () {
         Route::post('/create_admin', [App\Http\Controllers\Api\AuthController::class, 'CreateAdminUser']);
         Route::post('/assign_zonal_officer', [App\Http\Controllers\Api\ApplicationController::class, 'assignAdmin']);
+        Route::get('/fetch_zonal_officers', [App\Http\Controllers\Api\ApplicationController::class, 'fetchAllZonalOfficers']);
+        Route::post('/assign_roles', [App\Http\Controllers\Api\ApplicationController::class, 'assignRoles']);
     });
         
     Route::get('/fetch_user_household', [App\Http\Controllers\Api\RegistrationController::class, 'fetchuserHousehold']);

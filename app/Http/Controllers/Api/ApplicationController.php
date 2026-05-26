@@ -11,6 +11,7 @@ use App\Models\Household;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use GuzzleHttp\Psr7\Query;
 
 class ApplicationController extends Controller
 {
@@ -194,6 +195,14 @@ class ApplicationController extends Controller
                 'assigned_admin' => true
             ]);
 
+            $loggedUser = Auth::user();
+
+            $description = $loggedUser->name . " assigned application " . $application->application_code . " to " . $admin->name;
+
+            audit(
+                'assign admin', AssistanceApplication::class, Auth::id(), $request->header('User-Agent'), $description, $application->id
+            );
+
             DB::commit();
 
             return respond(true, 'Admin assigned successfully', $application, 200);
@@ -208,5 +217,80 @@ class ApplicationController extends Controller
 
             return respond(false, $e->getMessage(), null, 500);
             }
+    }
+
+    public function fetchAllZonalOfficers (Request $request) {
+        $zonal_officers = User::whereHas('roles' ,function($query){
+            $query->where('name' , 'Zonal Officer');
+        })
+        ->select('id', 'name', 'email', 'phone')
+        ->get();
+       
+        return respond(true, 'Zonal Officers fetched succesfully', $zonal_officers, 200);
+    }
+
+    public function assignRoles (Request $request) {
+        try {
+            DB::beginTransaction();
+
+            $validator = Validator::make($request->all(), [
+                'user_id'=> 'required|exists:users,id',
+                'role_id'=> 'required|exists:user_roles,id',
+            ]);
+
+            if ($validator->fails()) {
+                return respond(false, $validator->errors(), null, 400);
+            }
+
+            $user = User::find($request->user_id);
+
+            if ($user->registration_type !== 'admin') {
+                return respond(false, 'Only admin users can be assigned roles', null, 400);
+            }
+
+            $alreadyassigned = DB::table('user_roles')
+            ->where('user_id', $request->user_id)
+            ->where('role_id', $request->role_id)
+            ->exists();
+
+            if ($alreadyassigned){
+                return respond(false, 'Role already assigned to user', null, 400);
+            }
+
+            DB::table('user_roles')->insert([
+                'user_id'=> $request->user_id,
+                'role_id'=> $request->role_id,
+                'created_at'=> now(),
+                'updated_at'=> now()
+            ]);
+
+            
+            $date = now();
+            $userAgent = $request->header('User-Agent');
+            $loggeduser = Auth::user();
+            $role = DB::table('roles')
+                ->where('id', $request->role_id)
+                ->first();
+            $description = $loggeduser->name  . " assigned role " . $role->name . " to " . $user->name . " on " . $date;
+            $auditableId = $user->id;
+            audit('assign role', User::class, Auth::id(), $userAgent, $description, $auditableId);
+            
+            DB::commit();
+
+            return respond(true, 'Role assigned successfully', [
+                'user_id' => $request->user_id,
+                'role_id' => $request->role_id
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            log_error($e, [
+                'action' => 'assign_role',
+                'input' => $request->all(),
+            ]);
+
+            return respond(false, $e->getMessage(), null, 500);
+        }
     }
 }
